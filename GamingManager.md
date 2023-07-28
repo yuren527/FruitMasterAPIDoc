@@ -75,7 +75,7 @@
 |private| |void|AFruitArrived|FruitBehavior fb|水果击中玩家时调用的事件函数，计算击中后的生命值，生成击中特效，消灭水果，生命值耗尽时结束游戏|
 |private| |void|EndGame|EndGameReason reason|结束游戏，重置大炮位置，解绑大炮发射事件和智能弓姿态事件等一一系列操作|
 |private| |void|DelayEndGame|EndGameReason reason 结束原因<br/>float wat_secs 延迟秒数|延迟结束游戏|
-|private|static|void|DelayDestroy|MonoBehaviour excutor 消灭操作的执行者<br/> GameObject to_destroy 拟消灭物体<br/>float wait_secs 延迟事件|延迟消灭物体|
+|private|static|void|DelayDestroy|MonoBehaviour excutor 消灭操作的执行者<br/> GameObject to_destroy 拟消灭物体<br/>float wait_secs 延迟秒数|延迟消灭物体|
 |public| |void|ExitGame|void|退出游戏，主动退出|
 
 
