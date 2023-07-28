@@ -62,5 +62,20 @@
 |private| |float|FireColldownTime_Current|射击冷却倒计时，射击冷却用于防止一次射击瞬间触发两次射击事件|
 |private|const|float|FireCooldownTime|射击冷却秒数|
 
+## GamingManager的方法
+|Access|Specifiers|RetTy|Name|Params|Desc|
+|---|---|---|---|---|---|
+|public| |void|StartGame|void|开始游戏，该方法主要进行分数、连击数、生命值等数值的重置，并激活游戏进行时相关UI，绑定智能弓姿态接口，并将生成水果的方法绑定到大炮开火的事件上|
+|public| |void|PauseGame|void|暂停游戏，隐藏准星和暂停按钮，显示继续按钮，将Time.timeScale设为0|
+|public| |void|ResumeGame|void|继续游戏，暂停游戏的反向操作|
+|public| |void|IsGameStarted|void|游戏是否已开始|
+|public| |void|IsGamePaused|void|游戏是否已暂停|
+|public| |void|MakeFruitsWave|void|生成一波新的预生成水果，此阶段按照分数和波次生成一个新的水果队列，此阶段没有实际的物体产生，新队列生成后水果波次+1|
+|public| |void|SpawnAFruit|void|从水果生成队列中生成一个实际的水果，赋予水果对应的运动属性参数，并将水果的被击中和击中玩家事件绑定到对应的函数上|
+|private| |void|AFruitArrived|FruitBehavior fb|水果击中玩家时调用的事件函数，计算击中后的生命值，生成击中特效，消灭水果，生命值耗尽时结束游戏|
+|private| |void|EndGame|EndGameReason reason|结束游戏，重置大炮位置，解绑大炮发射事件和智能弓姿态事件等一一系列操作|
+|private| |void|DelayEndGame|EndGameReason reason 结束原因<br/>float wat_secs 延迟秒数|延迟结束游戏|
+|private|static|void|DelayDestroy|MonoBehaviour excutor 消灭操作的执行者<br/> GameObject to_destroy 拟消灭物体<br/>float wait_secs 延迟事件|延迟消灭物体|
+|public| |void|ExitGame|void|退出游戏，主动退出|
 
 
