@@ -68,8 +68,8 @@
 |public| |void|StartGame|void|开始游戏，该方法主要进行分数、连击数、生命值等数值的重置，并激活游戏进行时相关UI，绑定智能弓姿态接口，并将生成水果的方法绑定到大炮开火的事件上|
 |public| |void|PauseGame|void|暂停游戏，隐藏准星和暂停按钮，显示继续按钮，将Time.timeScale设为0|
 |public| |void|ResumeGame|void|继续游戏，暂停游戏的反向操作|
-|public| |void|IsGameStarted|void|游戏是否已开始|
-|public| |void|IsGamePaused|void|游戏是否已暂停|
+|public| |bool|IsGameStarted|void|游戏是否已开始|
+|public| |bool|IsGamePaused|void|游戏是否已暂停|
 |public| |void|MakeFruitsWave|void|生成一波新的预生成水果，此阶段按照分数和波次生成一个新的水果队列，此阶段没有实际的物体产生，新队列生成后水果波次+1|
 |public| |void|SpawnAFruit|void|从水果生成队列中生成一个实际的水果，赋予水果对应的运动属性参数，并将水果的被击中和击中玩家事件绑定到对应的函数上|
 |private| |void|AFruitArrived|FruitBehavior fb|水果击中玩家时调用的事件函数，计算击中后的生命值，生成击中特效，消灭水果，生命值耗尽时结束游戏|
@@ -77,5 +77,205 @@
 |private| |void|DelayEndGame|EndGameReason reason 结束原因<br/>float wat_secs 延迟秒数|延迟结束游戏|
 |private|static|void|DelayDestroy|MonoBehaviour excutor 消灭操作的执行者<br/> GameObject to_destroy 拟消灭物体<br/>float wait_secs 延迟秒数|延迟消灭物体|
 |public| |void|ExitGame|void|退出游戏，主动退出|
+|private| |void|FireArrow|float speed<br/> Vector dir|发射弓箭的内部方法|
+|private| |void|SmartBowFireArrow|float speed|使用智能弓发射箭的方法，此方法绑定在智能弓接口的发射事件上，由事件调用|
+|private| |void|UpdateRotation|Quaternion q|更新智能弓姿态的函数，由智能弓接口的事件调用|
+|private| |void|MouseFireArrow|Vector3 screenPos|用鼠标点击或手机上触屏点击来发射弓箭的函数，在Update中监听输入并调用|
+|private| |void|OnFruitHit|FruitBehavior fb 命中的水果<br/>Vector3 hitPoint 命中位置<br/>bool bCritical 是否为暴击|水果被击中后调用的方法，水果生成后该方法会被绑定到水果的OnHitEvent事件|
+|private| |bool|GainScore|int score 将获得的分数|获得分数，如果达到回复生命值的条件，则返回true，否则返回false|
+|private| |bool|UpdateLife|bool bDecrease|更新生命值，当参数为true时扣除一点生命值，否则回复一点生命值，当生命值降为0时返回true|
+|private| |void|MissShoot|void|当没有击中水果时调用的函数，主要用于重置连击数|
+|private| |void|ShowGamingUI|bool b|隐藏或显示游戏UI|
+|public| |void|DestroyFruit|FruitBehavior fb 要消灭的水果|消灭水果，除了正常抹去物体外，还把水果从列表中移除，同时调用水果被击碎的效果|
+|public| |void|SpawnStain|Sprite stain<br/>Vector3 position3d_ws|水果击中时生成屏幕污渍效果的方法|
 
+## GamingManager中Awake函数中的操作
+- 获取引用
+  ```
+  audioManager = gameObject.GetComponent<AudioManager>();
+        Debug.Assert(audioManager);
+        bowManager = gameObject.GetComponent<SmartBowManager>();
+        Debug.Assert(bowManager);
+        Debug.Assert(Cannon);
+  ```
+- 获取屏幕像素并为屏幕中心点像素赋值
+  ```
+  ScreenMidPoint = new Vector2(Screen.width / 2, Screen.height / 2);
+  ```
 
+## GamingManager中Start函数中的操作
+- 为按键绑定事件
+  ```
+  Resume_btn.GetComponentInChildren<Button>().onClick.AddListener(ResumeGame);
+  Pause_btn.GetComponentInChildren<Button>().onClick.AddListener(PauseGame);
+  Exit_btn.GetComponentInChildren<Button>().onClick.AddListener(ExitGame);
+  ```
+- 绑定智能弓发射事件
+  ```
+  SmartBowHelper.GetInstance().OnShooting += SmartBowFireArrow;
+  ```
+- 将各类UI调整到初始状态
+  ```
+  AimingCross_img.gameObject.SetActive(false);
+  Resume_btn.gameObject.SetActive(false);
+  ShowGamingUI(false);
+  ```
+- 设置物理重力大小
+  ```
+  Physics.gravity = new Vector3(0.0f, -9.8f * GravityMultiplier, 0.0f);
+  ```
+- 音效延迟调整
+  ```
+  BowFireAudio.timeSamples = 3000;
+  ```
+- 播放背景音乐
+  ```
+  AudioSource backgroundMusic = gameObject.GetComponent<AudioSource>();
+  backgroundMusic.clip = audioManager.GetBackgroundMusic();
+  backgroundMusic.Play();
+  ```
+
+## GamingManager中Update函数中的操作
+- 发射弓箭冷却
+  ```
+  if (FireCooldownTime_Current > 0f)
+        {
+            FireCooldownTime_Current = Mathf.Clamp(FireCooldownTime_Current - Time.deltaTime, 0f, FireCooldownTime);
+        }
+  ```
+- 监听鼠标或触屏点击发射
+  ```
+  if (Input.GetMouseButtonDown(0))
+            {
+                MouseFireArrow(Input.mousePosition);
+            }
+  ```
+- 生成水果或生成新的水果波次
+  ```
+  if (FruitsPendingSpawn.Count > 0)
+            {
+                if (TimeSinceLastFruitSpawn > GamingValues.SpawnFruitInterval)
+                {
+                    if (!Cannon.IsFireAnimating())
+                    {
+                        Cannon.TriggerShot();
+                        // Skip reseting fire interval when this is the last pending fruit
+                        // since we need it to fire immediately when firing the first fruit of a new wave
+                        if (FruitsPendingSpawn.Count == 1)
+                        {
+                            TimeSinceLastFruitSpawn = 0f; 
+                        }
+                    }
+                    else
+                    {
+                        // do nothing ,wait for cannon fire animation to finish
+                    }
+                }
+                else
+                {
+                    TimeSinceLastFruitSpawn += Time.deltaTime;
+                }
+            }
+            else // No pending spawning fruit
+            {
+                if (FruitsInField.Count == 0)
+                {
+                    if (MakeNewWaveCountdown > 0)
+                    {
+                        MakeNewWaveCountdown -= Time.deltaTime;
+                    }
+                    else
+                    {
+                        MakeFruitsWave();
+                        MakeNewWaveCountdown = GamingValues.MakeNewWaveCountdown;
+                    }
+                }
+            }
+  ```
+- 更新准心位置
+  ```
+  Vector3 raw_screen_pos = Cam.WorldToScreenPoint(Cam.transform.position + (CurrentRotation * Vector3.forward));
+                float dist_to_mid_x = (raw_screen_pos.x - ScreenMidPoint.x) * AimingCrossPosMultiplier;
+                float dist_to_mid_y = (raw_screen_pos.y - ScreenMidPoint.y) * AimingCrossPosMultiplier;
+
+                Vector3 scrren_pos = new Vector3(Mathf.Clamp((dist_to_mid_x + ScreenMidPoint.x), 0f, 2 * ScreenMidPoint.x), Mathf.Clamp((dist_to_mid_y + ScreenMidPoint.y), 0f, 2 * ScreenMidPoint.y), 1f);
+
+                AimingCross_img.gameObject.GetComponent<RectTransform>().position = scrren_pos;
+  ```
+- 冰冻香蕉和连击石榴效果开关和执行
+  ```
+  // Freeze functionality
+            if (bFreeze)
+            {
+                Time.timeScale = 0.5f;
+                bFreezing = true;
+                bFreeze = false;
+                foreach (var fruit in FruitsInField)
+                {
+                    fruit.GetComponent<FruitBehavior>().Frost();
+                }
+            }
+            if (bFreezing)
+            {
+                // Freeze visual effect
+                float freeze_alpha;
+                if (FreezeTimeEclipsed < 0.1f)
+                {
+                    freeze_alpha = Mathf.Lerp(1f, 0.5f, FreezeTimeEclipsed / 0.1f);
+                }
+                else
+                {
+                    freeze_alpha = Mathf.Lerp(0.5f, 1f, (FreezeTimeEclipsed - 0.1f) / (GamingValues.FreezeTime - 0.1f));
+                }
+                MeshRenderer renderer = IceCube.GetComponent<MeshRenderer>();
+                renderer.material.SetFloat("_Cutoff", freeze_alpha);
+
+                FreezeTimeEclipsed += (Time.deltaTime / Time.timeScale); // deltaTime is scaled by timeScale, divide it by timeScale will fix it
+                if (FreezeTimeEclipsed >= GamingValues.FreezeTime)
+                {
+                    Time.timeScale = 1.0f;
+                    FreezeTimeEclipsed = 0f;
+                    bFreezing = false;
+                    foreach (var fruit in FruitsInField)
+                    {
+                        fruit.GetComponent<FruitBehavior>().UnFrost();
+                    }
+                }              
+            }
+
+            // ComboTime functionality
+            if (bEnterComboTime)
+            {
+                bComboTime = true;
+                bEnterComboTime = false;
+                ComboTimeEclipsed = 0f;
+            }
+            if (bComboTime)
+            {
+                ComboTimeEclipsed += Time.deltaTime;
+                if (ComboTimeEclipsed > GamingValues.ComboHitTime)
+                {
+                    bComboTime = false;
+                    ComboTimeEclipsed = 0f;
+
+                    foreach (var f in FruitsInField)
+                    {
+                        FruitBehavior fr = f.GetComponent<FruitBehavior>();
+                        fr.bMoveAlongTrajectory = true;
+                    }
+                    FruitVelocityCache_Linear.Clear();
+                    FruitVelocityCache_Angular.Clear();
+
+                    DestroyFruit(ActiveComboPomegarante);
+                    ActiveComboPomegarante = null;
+                }
+                else
+                {
+                    foreach (var f in FruitsInField)
+                    {
+                        FruitBehavior fr = f.GetComponent<FruitBehavior>();
+                        fr.bMoveAlongTrajectory = false;
+                    }
+                }
+            }
+  ```
